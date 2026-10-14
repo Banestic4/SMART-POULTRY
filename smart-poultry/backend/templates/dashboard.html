@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMART-Poultry | Dashboard</title>
+<style>
+  :root { --green:#1f6b45; --green-d:#154d31; --bg:#f2f5f1; --card:#fff; --ink:#1c2a22; --muted:#5d6b63;
+          --ok:#1f8a4c; --warn:#c77700; --crit:#c0322a; --line:#dfe6e1; --t:#d1481f; --h:#1f6fb5; --g:#7a4fb0; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { background:var(--green); color:#fff; padding:12px 20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:1.2rem; flex:1; min-width:180px; }
+  .pill { padding:4px 12px; border-radius:20px; font-size:.82rem; font-weight:600; background:#ffffff26; }
+  .pill.on { background:#2fb86a; } .pill.off { background:#c0322a; }
+  header a { color:#fff; font-size:.85rem; }
+  main { max-width:1180px; margin:0 auto; padding:18px 16px 40px; display:grid; gap:16px;
+         grid-template-columns:repeat(12,1fr); }
+  .card { background:var(--card); border-radius:12px; padding:16px 18px; box-shadow:0 1px 4px rgba(0,0,0,.07); }
+  .stat { grid-column:span 3; }
+  .stat .lbl { color:var(--muted); font-size:.82rem; text-transform:uppercase; letter-spacing:.5px; }
+  .stat .val { font-size:2.3rem; font-weight:700; margin:6px 0 2px; font-variant-numeric:tabular-nums; }
+  .stat .sub { font-size:.82rem; color:var(--muted); min-height:1.1em; }
+  .stat.ok { border-top:4px solid var(--ok); } .stat.warn { border-top:4px solid var(--warn); }
+  .stat.crit { border-top:4px solid var(--crit); } .stat.none { border-top:4px solid var(--line); }
+  .wide { grid-column:span 8; } .side { grid-column:span 4; } .full { grid-column:span 12; }
+  h2 { margin:0 0 10px; font-size:1rem; }
+  canvas { width:100%; height:230px; display:block; }
+  .legend { display:flex; gap:16px; font-size:.8rem; color:var(--muted); margin-top:6px; flex-wrap:wrap; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; }
+  ul.alerts { list-style:none; margin:0; padding:0; max-height:330px; overflow:auto; }
+  ul.alerts li { padding:9px 0; border-bottom:1px solid var(--line); font-size:.88rem; }
+  ul.alerts .meta { color:var(--muted); font-size:.76rem; margin-top:3px; display:flex; gap:8px; flex-wrap:wrap; }
+  .sev { font-weight:700; font-size:.7rem; padding:1px 7px; border-radius:10px; color:#fff; }
+  .sev.critical { background:var(--crit); } .sev.warning { background:var(--warn); }
+  .sms { padding:1px 7px; border-radius:10px; background:#e8efe9; font-size:.7rem; }
+  .sms.sent { background:#d7f0e0; color:#146036; } .sms.failed { background:#fbdcd9; color:#8f1f18; }
+  button, .btn { background:var(--green); color:#fff; border:0; border-radius:8px; padding:9px 14px; font-size:.88rem;
+                 font-weight:600; cursor:pointer; }
+  button:hover { background:var(--green-d); } button.ghost { background:#e8efe9; color:var(--green-d); }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .thumbs { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px; }
+  .thumbs figure { margin:0; font-size:.72rem; color:var(--muted); }
+  .thumbs img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:6px; display:block; }
+  .note { font-size:.8rem; color:var(--muted); margin-top:8px; }
+  .empty { color:var(--muted); font-size:.88rem; padding:8px 0; }
+  @media (max-width:900px) { .stat { grid-column:span 6; } .wide,.side { grid-column:span 12; } }
+  @media (max-width:520px) { .stat { grid-column:span 12; } .thumbs { grid-template-columns:repeat(2,1fr); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>SMART-Poultry Monitoring Dashboard</h1>
+  <span id="conn" class="pill off">Device: waiting…</span>
+  <span class="pill">{{ user }}</span>
+  <a href="/logout">Sign out</a>
+</header>
+
+<main>
+  <section class="card stat none" id="c-temp"><div class="lbl">Temperature</div><div class="val" id="v-temp">--</div><div class="sub" id="s-temp"></div></section>
+  <section class="card stat none" id="c-hum"><div class="lbl">Humidity</div><div class="val" id="v-hum">--</div><div class="sub" id="s-hum"></div></section>
+  <section class="card stat none" id="c-gas"><div class="lbl">Air quality (MQ135)</div><div class="val" id="v-gas">--</div><div class="sub" id="s-gas"></div></section>
+  <section class="card stat none" id="c-ai"><div class="lbl">AI risk assessment</div><div class="val" id="v-ai">--</div><div class="sub" id="s-ai"></div></section>
+
+  <section class="card wide">
+    <h2>Temperature and humidity history</h2>
+    <canvas id="ch1"></canvas>
+    <div class="legend"><span><i style="background:var(--t)"></i>Temperature (°C)</span><span><i style="background:var(--h)"></i>Humidity (%)</span></div>
+    <h2 style="margin-top:18px">Air quality index (MQ135, relative %)</h2>
+    <canvas id="ch2" style="height:170px"></canvas>
+  </section>
+
+  <section class="card side">
+    <div class="row" style="justify-content:space-between"><h2>Alerts</h2><button class="ghost" id="btn-sms">Send test SMS</button></div>
+    <ul class="alerts" id="alerts"><li class="empty">No alerts yet.</li></ul>
+    <div class="note" id="sms-result"></div>
+  </section>
+
+  <section class="card full">
+    <h2>Image analysis (computer vision)</h2>
+    <div class="row">
+      <input type="file" id="file" accept="image/*">
+      <button id="btn-up">Analyse image</button>
+      <span id="up-result" class="note"></span>
+    </div>
+    <div class="note">Images are uploaded here for analysis. The same endpoint accepts images posted by an ESP32-CAM using the device key.</div>
+    <div class="thumbs" id="thumbs"></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let TH = null;
+
+function setCard(id, level) { $(id).className = "card stat " + level; }
+
+function fmtTime(s) {                      // DB stores UTC; show local time
+  const d = new Date(s.replace(" ", "T") + "Z");
+  return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+}
+
+/* ---- tiny dependency-free line chart (works offline) ---- */
+function drawChart(canvas, labels, series, opts = {}) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const g = canvas.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, W, H);
+  const padL = 40, padR = 10, padT = 10, padB = 22;
+  const all = series.flatMap(s => s.data).filter(v => v != null);
+  if (!all.length) { g.fillStyle = "#5d6b63"; g.font = "13px system-ui"; g.fillText("Waiting for data…", padL, H / 2); return; }
+  let lo = opts.min ?? Math.min(...all), hi = opts.max ?? Math.max(...all);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const span = hi - lo; if (opts.min === undefined) lo -= span * .08; if (opts.max === undefined) hi += span * .08;
+  const X = i => padL + (labels.length < 2 ? 0 : i * (W - padL - padR) / (labels.length - 1));
+  const Y = v => padT + (hi - v) * (H - padT - padB) / (hi - lo);
+  g.strokeStyle = "#dfe6e1"; g.fillStyle = "#5d6b63"; g.font = "11px system-ui"; g.lineWidth = 1;
+  for (let k = 0; k <= 4; k++) {
+    const v = lo + (hi - lo) * k / 4, y = Y(v);
+    g.beginPath(); g.moveTo(padL, y); g.lineTo(W - padR, y); g.stroke();
+    g.fillText(v.toFixed(0), 6, y + 4);
+  }
+  if (labels.length) {
+    g.fillText(labels[0], padL, H - 6);
+    const last = labels[labels.length - 1]; g.fillText(last, W - padR - g.measureText(last).width, H - 6);
+  }
+  (opts.guides || []).forEach(gd => {
+    if (gd.v < lo || gd.v > hi) return;
+    g.strokeStyle = gd.color; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(padL, Y(gd.v)); g.lineTo(W - padR, Y(gd.v)); g.stroke(); g.setLineDash([]);
+  });
+  series.forEach(s => {
+    g.strokeStyle = s.color; g.lineWidth = 2; g.beginPath(); let started = false;
+    s.data.forEach((v, i) => { if (v == null) return; started ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)); started = true; });
+    g.stroke();
+  });
+}
+
+function level(v, lo, hi) { return (v >= hi || v < lo) ? "crit" : "ok"; }
+
+async function refresh() {
+  try {
+    const r = await fetch("/api/latest");
+    if (r.status === 401) { location.href = "/login"; return; }
+    const d = await r.json(); TH = d.thresholds;
+    const conn = $("conn");
+    conn.className = "pill " + (d.online ? "on" : "off");
+    conn.textContent = d.online ? "Device: ONLINE" : (d.reading ? "Device: OFFLINE" : "Device: no data yet");
+    const x = d.reading;
+    if (x) {
+      $("v-temp").textContent = x.temperature.toFixed(1) + " °C";
+      $("s-temp").textContent = `Safe range ${TH.temp_low}–${TH.temp_high} °C`;
+      setCard("c-temp", level(x.temperature, TH.temp_low, TH.temp_high));
+      $("v-hum").textContent = x.humidity.toFixed(0) + " %";
+      $("s-hum").textContent = `Safe range ${TH.hum_low}–${TH.hum_high} %`;
+      setCard("c-hum", (x.humidity > TH.hum_high || x.humidity < TH.hum_low) ? "warn" : "ok");
+      $("v-gas").textContent = x.gas_pct.toFixed(0) + " %";
+      $("s-gas").textContent = `Raw ADC ${x.gas_raw} (alert at ${TH.gas_high_raw})`;
+      setCard("c-gas", x.gas_raw >= TH.gas_high_raw ? "crit" : "ok");
+      if (x.risk_label) {
+        $("v-ai").textContent = x.risk_label;
+        $("s-ai").textContent = `Risk probability ${(x.risk_prob * 100).toFixed(0)} %`;
+        setCard("c-ai", x.risk_label === "At-risk" ? "crit" : "ok");
+      } else { $("v-ai").textContent = "n/a"; $("s-ai").textContent = "Model not trained"; setCard("c-ai", "none"); }
+    }
+  } catch (e) { $("conn").className = "pill off"; $("conn").textContent = "Server unreachable"; }
+}
+
+async function refreshHistory() {
+  const rows = await (await fetch("/api/history?limit=120")).json();
+  const labels = rows.map(r => fmtTime(r.created_at));
+  drawChart($("ch1"), labels, [
+    {data: rows.map(r => r.temperature), color: "#d1481f"},
+    {data: rows.map(r => r.humidity), color: "#1f6fb5"}]);
+  drawChart($("ch2"), labels, [{data: rows.map(r => r.gas_pct), color: "#7a4fb0"}], {min: 0, max: 100,
+    guides: TH ? [{v: TH.gas_high_raw / 4095 * 100, color: "#c0322a"}] : []});
+}
+
+async function refreshAlerts() {
+  const rows = await (await fetch("/api/alerts?limit=25")).json();
+  const ul = $("alerts"); ul.replaceChildren();
+  if (!rows.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = "No alerts yet."; ul.append(li); return; }
+  rows.forEach(a => {
+    const li = document.createElement("li");
+    const msg = document.createElement("div"); msg.textContent = a.message;
+    const meta = document.createElement("div"); meta.className = "meta";
+    const sev = document.createElement("span"); sev.className = "sev " + a.severity; sev.textContent = a.severity.toUpperCase();
+    const sms = document.createElement("span"); sms.className = "sms " + a.sms_status; sms.textContent = "SMS: " + a.sms_status;
+    sms.title = a.sms_detail || "";
+    const tm = document.createElement("span"); tm.textContent = fmtTime(a.created_at);
+    meta.append(sev, sms, tm); li.append(msg, meta); ul.append(li);
+  });
+}
+
+async function refreshImages() {
+  const rows = await (await fetch("/api/images")).json();
+  const box = $("thumbs"); box.replaceChildren();
+  rows.forEach(r => {
+    const f = document.createElement("figure"); const im = document.createElement("img"); im.src = "/uploads/" + r.filename; im.alt = "uploaded image";
+    const c = document.createElement("figcaption");
+    c.textContent = r.prediction ? `${r.prediction} (${(r.confidence * 100).toFixed(0)}%)` : "not analysed";
+    f.append(im, c); box.append(f);
+  });
+}
+
+$("btn-up").onclick = async () => {
+  const f = $("file").files[0]; const out = $("up-result");
+  if (!f) { out.textContent = "Choose an image first."; return; }
+  const fd = new FormData(); fd.append("image", f); out.textContent = "Analysing…";
+  const r = await fetch("/api/image", {method: "POST", body: fd}); const d = await r.json();
+  out.textContent = d.error ? d.error : (d.prediction ? `Result: ${d.prediction} (${(d.confidence * 100).toFixed(0)}% confidence)` : d.note);
+  refreshImages(); refreshAlerts();
+};
+
+$("btn-sms").onclick = async () => {
+  $("sms-result").textContent = "Sending…";
+  const d = await (await fetch("/api/test-sms", {method: "POST"})).json();
+  $("sms-result").textContent = `SMS ${d.status}: ${d.detail}`;
+};
+
+async function tick() { await refresh(); await refreshHistory(); await refreshAlerts(); }
+tick(); refreshImages();
+setInterval(tick, 3000);
+window.addEventListener("resize", refreshHistory);
+</script>
+</body>
+</html>

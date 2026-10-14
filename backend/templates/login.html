@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMART-Poultry | Sign in</title>
+<style>
+  :root { --green:#1f6b45; --green-d:#154d31; --bg:#f2f5f1; --ink:#1c2a22; --muted:#5d6b63; --err:#b3261e; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--bg); color:var(--ink);
+         font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; padding:16px; }
+  .card { width:100%; max-width:380px; background:#fff; border-radius:14px; padding:32px 28px;
+          box-shadow:0 8px 30px rgba(20,60,40,.12); }
+  h1 { margin:0 0 4px; font-size:1.5rem; color:var(--green); letter-spacing:.2px; }
+  p.sub { margin:0 0 22px; color:var(--muted); font-size:.92rem; }
+  label { display:block; font-size:.85rem; font-weight:600; margin:14px 0 6px; }
+  input { width:100%; padding:11px 12px; border:1px solid #c9d3cc; border-radius:8px; font-size:1rem; }
+  input:focus { outline:2px solid var(--green); border-color:var(--green); }
+  button { width:100%; margin-top:22px; padding:12px; border:0; border-radius:8px; background:var(--green);
+           color:#fff; font-size:1rem; font-weight:600; cursor:pointer; }
+  button:hover { background:var(--green-d); }
+  .err { background:#fdecea; color:var(--err); padding:10px 12px; border-radius:8px; font-size:.9rem; margin-bottom:6px; }
+  .foot { margin-top:18px; font-size:.78rem; color:var(--muted); text-align:center; }
+</style>
+</head>
+<body>
+  <form class="card" method="post" autocomplete="off">
+    <h1>SMART-Poultry</h1>
+    <p class="sub">Secure AI-driven poultry monitoring. Authorised users only.</p>
+    {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
+    <label for="u">Username</label>
+    <input id="u" name="username" required autofocus>
+    <label for="p">Password</label>
+    <input id="p" name="password" type="password" required>
+    <button type="submit">Sign in</button>
+    <div class="foot">Repeated failed attempts lock the sign-in temporarily.</div>
+  </form>
+</body>
+</html>

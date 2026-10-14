@@ -1,0 +1,6 @@
+*.db
+*.db-journal
+*.sqlite3
+__pycache__/
+venv/
+.env
